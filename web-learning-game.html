@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebDev Quest — Game Pembelajaran</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d14;
+    --surface: #14141f;
+    --card: #1a1a2e;
+    --border: #2a2a45;
+    --accent1: #7c3aed;
+    --accent2: #06b6d4;
+    --accent3: #f59e0b;
+    --accent4: #10b981;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --correct: #10b981;
+    --wrong: #ef4444;
+    --glow1: rgba(124,58,237,0.3);
+    --glow2: rgba(6,182,212,0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Particle canvas ─────────────────────────── */
+  #particles {
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── App shell ──────────────────────────────── */
+  #app {
+    position: relative; z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* ── Screens ─────────────────────────────────── */
+  .screen { display: none; }
+  .screen.active { display: block; animation: fadeUp .5s ease; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── INTRO SCREEN ────────────────────────────── */
+  .intro-hero {
+    text-align: center;
+    padding: 3rem 1rem 2rem;
+  }
+  .game-logo {
+    font-size: clamp(2.4rem, 7vw, 4.5rem);
+    font-weight: 800;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -2px;
+    margin-bottom: .5rem;
+  }
+  .tagline {
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: .9rem;
+    margin-bottom: 3rem;
+    letter-spacing: 2px;
+  }
+
+  .module-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.2rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .module-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: transform .25s, border-color .25s, box-shadow .25s;
+    position: relative;
+    overflow: hidden;
+    text-align: left;
+  }
+  .module-card::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    opacity: .15;
+    transition: transform .4s;
+  }
+  .module-card:hover { transform: translateY(-4px); }
+  .module-card:hover::before { transform: scale(2.5); }
+
+  .module-card[data-module="css"]   { --mc: var(--accent1); }
+  .module-card[data-module="bs"]    { --mc: var(--accent2); }
+  .module-card[data-module="dom"]   { --mc: var(--accent4); }
+  .module-card[data-module="mixed"] { --mc: var(--accent3); }
+
+  .module-card::before { background: var(--mc); }
+  .module-card:hover { border-color: var(--mc); box-shadow: 0 0 24px color-mix(in srgb, var(--mc) 30%, transparent); }
+
+  .mc-icon { font-size: 2rem; margin-bottom: .8rem; }
+  .mc-title { font-size: 1.1rem; font-weight: 700; margin-bottom: .3rem; color: var(--mc); }
+  .mc-desc  { font-size: .8rem; color: var(--muted); line-height: 1.5; }
+  .mc-count { font-family: 'Space Mono', monospace; font-size: .75rem; color: var(--mc); margin-top: .7rem; }
+
+  .all-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .6rem;
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    padding: .9rem 2.5rem;
+    font-family: 'Syne', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity .2s, transform .2s;
+    letter-spacing: .5px;
+  }
+  .all-btn:hover { opacity: .9; transform: scale(1.03); }
+
+  /* ── QUIZ SCREEN ─────────────────────────────── */
+  .quiz-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.8rem;
+    flex-wrap: wrap;
+  }
+  .module-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: .7rem;
+    letter-spacing: 1px;
+    padding: .3rem .8rem;
+    border-radius: 50px;
+    background: var(--card);
+    border: 1px solid var(--border);
+  }
+  .q-counter {
+    font-family: 'Space Mono', monospace;
+    font-size: .8rem;
+    color: var(--muted);
+    margin-left: auto;
+  }
+  .score-live {
+    font-family: 'Space Mono', monospace;
+    font-size: .85rem;
+    color: var(--accent3);
+  }
+
+  /* Progress bar */
+  .progress-wrap {
+    background: var(--border);
+    border-radius: 99px;
+    height: 6px;
+    margin-bottom: 2rem;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent1), var(--accent2));
+    transition: width .5s cubic-bezier(.4,0,.2,1);
+  }
+
+  /* HP bar */
+  .hp-row {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    margin-bottom: 1.5rem;
+  }
+  .hp-label { font-size: .75rem; color: var(--muted); font-family: 'Space Mono', monospace; }
+  .hp-bar { flex: 1; background: var(--border); border-radius: 99px; height: 8px; overflow: hidden; }
+  .hp-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg,#ef4444,#f97316); transition: width .5s; }
+  .hp-num { font-family: 'Space Mono', monospace; font-size: .8rem; color: #f97316; }
+
+  /* Question card */
+  .question-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+  }
+  .question-type {
+    font-family: 'Space Mono', monospace;
+    font-size: .68rem;
+    color: var(--accent2);
+    letter-spacing: 1px;
+    margin-bottom: .7rem;
+    text-transform: uppercase;
+  }
+  .question-text {
+    font-size: 1.15rem;
+    font-weight: 600;
+    line-height: 1.55;
+  }
+  .code-snippet {
+    background: #0a0a15;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent1);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    font-family: 'Space Mono', monospace;
+    font-size: .82rem;
+    color: #a5f3fc;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .code-snippet .kw  { color: #c084fc; }
+  .code-snippet .val { color: #86efac; }
+  .code-snippet .str { color: #fde68a; }
+  .code-snippet .cm  { color: #475569; }
+
+  /* Answer options */
+  .options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .85rem;
+    margin-bottom: 1.2rem;
+  }
+  @media (max-width: 550px) { .options-grid { grid-template-columns: 1fr; } }
+
+  .option-btn {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: .95rem 1.2rem;
+    text-align: left;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: .9rem;
+    color: var(--text);
+    transition: border-color .2s, background .2s, transform .15s;
+    line-height: 1.4;
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+  }
+  .option-btn:hover:not(:disabled) {
+    border-color: var(--accent1);
+    background: rgba(124,58,237,.08);
+    transform: scale(1.01);
+  }
+  .option-btn .opt-letter {
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    background: var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Mono', monospace;
+    font-size: .75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    transition: background .2s;
+  }
+  .option-btn.correct {
+    border-color: var(--correct);
+    background: rgba(16,185,129,.12);
+  }
+  .option-btn.correct .opt-letter { background: var(--correct); color: #fff; }
+  .option-btn.wrong {
+    border-color: var(--danger);
+    background: rgba(239,68,68,.1);
+  }
+  .option-btn.wrong .opt-letter { background: var(--danger); color: #fff; }
+  .option-btn:disabled { cursor: default; }
+
+  /* Fill-in-blank */
+  .fill-input {
+    width: 100%;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: .9rem 1.2rem;
+    font-family: 'Space Mono', monospace;
+    font-size: .95rem;
+    color: var(--text);
+    outline: none;
+    margin-bottom: .8rem;
+    transition: border-color .2s;
+  }
+  .fill-input:focus { border-color: var(--accent1); }
+  .fill-input.correct { border-color: var(--correct); background: rgba(16,185,129,.08); }
+  .fill-input.wrong   { border-color: var(--danger);  background: rgba(239,68,68,.06); }
+
+  /* Submit / Next */
+  .action-row {
+    display: flex;
+    gap: .8rem;
+    flex-wrap: wrap;
+  }
+  .btn-submit, .btn-next, .btn-hint {
+    border: none;
+    border-radius: 10px;
+    padding: .8rem 1.8rem;
+    font-family: 'Syne', sans-serif;
+    font-size: .9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity .2s, transform .15s;
+  }
+  .btn-submit { background: linear-gradient(135deg,var(--accent1),var(--accent2)); color: #fff; }
+  .btn-next   { background: var(--card); border: 1px solid var(--border); color: var(--text); }
+  .btn-hint   { background: transparent; border: 1px solid var(--accent3); color: var(--accent3); font-size: .82rem; padding: .7rem 1.2rem; }
+  .btn-submit:hover, .btn-next:hover { opacity: .85; transform: scale(1.02); }
+  .btn-hint:hover { background: rgba(245,158,11,.1); }
+  .btn-submit:disabled { opacity: .4; cursor: default; transform: none; }
+
+  /* Feedback flash */
+  .feedback-bar {
+    border-radius: 12px;
+    padding: .9rem 1.2rem;
+    font-size: .9rem;
+    margin-bottom: 1rem;
+    display: none;
+    animation: fadeUp .3s ease;
+    line-height: 1.5;
+  }
+  .feedback-bar.show { display: flex; align-items: flex-start; gap: .6rem; }
+  .feedback-bar.correct-fb { background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.3); color: #6ee7b7; }
+  .feedback-bar.wrong-fb   { background: rgba(239,68,68,.1);   border: 1px solid rgba(239,68,68,.3);  color: #fca5a5; }
+  .feedback-bar.hint-fb    { background: rgba(245,158,11,.1);  border: 1px solid rgba(245,158,11,.3); color: #fde68a; }
+
+  /* Streak badge */
+  .streak-badge {
+    position: fixed;
+    top: 1.5rem; right: 1.5rem;
+    background: var(--accent3);
+    color: #000;
+    font-family: 'Space Mono', monospace;
+    font-size: .75rem;
+    font-weight: 700;
+    padding: .4rem .9rem;
+    border-radius: 50px;
+    z-index: 100;
+    display: none;
+    animation: popIn .3s ease;
+  }
+  @keyframes popIn {
+    from { transform: scale(.5); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+
+  /* ── RESULT SCREEN ─────────────────────────── */
+  .result-wrap {
+    text-align: center;
+    padding: 3rem 1rem;
+  }
+  .result-emoji { font-size: 4rem; margin-bottom: 1rem; animation: bounce 1s ease infinite; }
+  @keyframes bounce {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-12px); }
+  }
+  .result-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg,var(--accent3),var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: .5rem;
+  }
+  .result-score-big {
+    font-family: 'Space Mono', monospace;
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: var(--accent2);
+    margin: 1rem 0 .3rem;
+  }
+  .result-sub { color: var(--muted); font-size: .9rem; margin-bottom: 2.5rem; }
+
+  .stat-row {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 2.5rem;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.2rem 1.8rem;
+    min-width: 110px;
+  }
+  .stat-val { font-family: 'Space Mono', monospace; font-size: 1.6rem; font-weight: 700; }
+  .stat-lbl { font-size: .72rem; color: var(--muted); margin-top: .2rem; }
+
+  .result-btns { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+  .btn-replay {
+    background: linear-gradient(135deg,var(--accent1),var(--accent2));
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    padding: .9rem 2.5rem;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: opacity .2s;
+  }
+  .btn-replay:hover { opacity: .85; }
+  .btn-menu {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 50px;
+    padding: .9rem 2.5rem;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+  .btn-menu:hover { border-color: var(--accent1); }
+
+  /* Review section */
+  .review-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 2rem 0 1rem;
+    color: var(--accent3);
+    text-align: left;
+  }
+  .review-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    margin-bottom: .7rem;
+    text-align: left;
+  }
+  .review-item.r-correct { border-left: 3px solid var(--correct); }
+  .review-item.r-wrong   { border-left: 3px solid var(--danger); }
+  .review-q { font-size: .85rem; color: var(--text); margin-bottom: .4rem; }
+  .review-ans { font-family: 'Space Mono', monospace; font-size: .78rem; }
+  .review-ans .r-c { color: var(--correct); }
+  .review-ans .r-w { color: var(--danger); }
+
+  /* ── Misc ────────────────────────────────────── */
+  .hidden { display: none !important; }
+  .center { text-align: center; }
+</style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+
+<div id="streakBadge" class="streak-badge">🔥 STREAK ×<span id="streakNum">0</span></div>
+
+<div id="app">
+
+  <!-- ════ INTRO ════ -->
+  <div id="screenIntro" class="screen active">
+    <div class="intro-hero">
+      <div class="game-logo">WebDev Quest</div>
+      <div class="tagline">// Game Pembelajaran Pemrograman Web</div>
+    </div>
+    <div class="module-grid">
+      <div class="module-card" data-module="css" onclick="startGame('css')">
+        <div class="mc-icon">🎨</div>
+        <div class="mc-title">CSS Transition</div>
+        <div class="mc-desc">Duration, Delay, timing-function & animasi halus</div>
+        <div class="mc-count">10 soal • Pemula</div>
+      </div>
+      <div class="module-card" data-module="bs" onclick="startGame('bs')">
+        <div class="mc-icon">⚡</div>
+        <div class="mc-title">Bootstrap</div>
+        <div class="mc-desc">Container, Grid System & Button Group</div>
+        <div class="mc-count">10 soal • Pemula</div>
+      </div>
+      <div class="module-card" data-module="dom" onclick="startGame('dom')">
+        <div class="mc-icon">🌐</div>
+        <div class="mc-title">JavaScript DOM</div>
+        <div class="mc-desc">Selectors, Events, Manipulasi elemen</div>
+        <div class="mc-count">10 soal • Menengah</div>
+      </div>
+      <div class="module-card" data-module="mixed" onclick="startGame('mixed')">
+        <div class="mc-icon">🏆</div>
+        <div class="mc-title">Mix All</div>
+        <div class="mc-desc">Gabungan semua topik — uji kemampuanmu!</div>
+        <div class="mc-count">20 soal • Campuran</div>
+      </div>
+    </div>
+    <div class="center">
+      <button class="all-btn" onclick="startGame('mixed')">🚀 Mulai Tantangan Penuh</button>
+    </div>
+  </div>
+
+  <!-- ════ QUIZ ════ -->
+  <div id="screenQuiz" class="screen">
+    <div class="quiz-header">
+      <span class="module-badge" id="qModuleBadge"></span>
+      <span class="score-live">⭐ <span id="liveSc">0</span></span>
+      <span class="q-counter" id="qCounter">1 / 10</span>
+    </div>
+    <div class="progress-wrap"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="hp-row">
+      <span class="hp-label">HP</span>
+      <div class="hp-bar"><div class="hp-fill" id="hpFill" style="width:100%"></div></div>
+      <span class="hp-num" id="hpNum">3</span>
+    </div>
+
+    <div class="question-card">
+      <div class="question-type" id="qType">PILIHAN GANDA</div>
+      <div class="question-text" id="qText"></div>
+      <div id="qCode" class="code-snippet hidden"></div>
+    </div>
+
+    <div id="feedbackBar" class="feedback-bar"></div>
+
+    <div id="optionsArea"></div>
+    <div class="action-row">
+      <button class="btn-hint" id="btnHint" onclick="showHint()">💡 Hint</button>
+      <button class="btn-submit hidden" id="btnSubmit" onclick="submitFill()">Cek Jawaban</button>
+      <button class="btn-next hidden" id="btnNext" onclick="nextQuestion()">Lanjut →</button>
+    </div>
+  </div>
+
+  <!-- ════ RESULT ════ -->
+  <div id="screenResult" class="screen">
+    <div class="result-wrap">
+      <div class="result-emoji" id="resultEmoji">🏆</div>
+      <div class="result-title" id="resultTitle">Kerja Bagus!</div>
+      <div class="result-score-big" id="resultScBig">0</div>
+      <div class="result-sub" id="resultSub">poin diperoleh</div>
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-val" id="statCorrect" style="color:var(--correct)">0</div>
+          <div class="stat-lbl">Benar</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="statWrong" style="color:var(--danger)">0</div>
+          <div class="stat-lbl">Salah</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="statStreak" style="color:var(--accent3)">0</div>
+          <div class="stat-lbl">Best Streak</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="statAcc" style="color:var(--accent2)">0%</div>
+          <div class="stat-lbl">Akurasi</div>
+        </div>
+      </div>
+      <div class="result-btns">
+        <button class="btn-replay" onclick="replayGame()">🔄 Main Lagi</button>
+        <button class="btn-menu" onclick="goMenu()">← Menu Utama</button>
+      </div>
+      <div id="reviewArea"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ════ QUESTION BANK ════ */
+const QB = {
+  css: [
+    {
+      type:"mc",
+      q:"Apa fungsi utama dari CSS Transition?",
+      code:null,
+      opts:["Membuat perubahan style berjalan secara halus","Mengatur warna elemen secara otomatis","Membuat elemen bergerak terus-menerus","Mengatur posisi elemen di halaman"],
+      ans:0,
+      hint:"CSS Transition membuat perubahan 'smooth' bukan tiba-tiba.",
+      exp:"CSS Transition digunakan agar perubahan style (misal warna, ukuran) berjalan secara halus (smooth) dalam jangka waktu tertentu."
+    },
+    {
+      type:"mc",
+      q:"Properti manakah yang menentukan BERAPA LAMA animasi transisi berlangsung?",
+      code:null,
+      opts:["transition-delay","transition-duration","transition-timing-function","transition-property"],
+      ans:1,
+      hint:"'Duration' = durasi = lama waktu.",
+      exp:"transition-duration menentukan berapa lama animasi berlangsung, menggunakan satuan detik (s) atau milidetik (ms)."
+    },
+    {
+      type:"mc",
+      q:"Properti manakah yang menentukan WAKTU TUNGGU sebelum animasi dimulai?",
+      code:null,
+      opts:["transition-duration","transition-timing-function","transition-delay","transition-property"],
+      ans:2,
+      hint:"'Delay' = penundaan = tunggu dulu.",
+      exp:"transition-delay menentukan waktu tunggu sebelum animasi dimulai setelah suatu aksi (seperti hover) terjadi."
+    },
+    {
+      type:"fill",
+      q:"Lengkapi kode berikut agar transisi berlangsung selama 2 detik:",
+      code:`.btn {\n  background: blue;\n  <kw>transition-duration</kw>: _____;\n}`,
+      ans:"2s",
+      hint:"Satuannya 's' = detik. 2 detik = ?",
+      exp:"Nilai '2s' berarti 2 detik. Bisa juga '2000ms' (2000 milidetik)."
+    },
+    {
+      type:"mc",
+      q:"Perhatikan kode berikut. Apa yang akan terjadi saat elemen di-hover?",
+      code:`.box {\n  width: 100px;\n  transition-duration: 1s;\n  transition-delay: 0.5s;\n}\n.box:hover { width: 200px; }`,
+      opts:["Langsung melebar ke 200px","Melebar ke 200px setelah 0.5s, dalam durasi 1s","Melebar ke 200px dalam 0.5s","Melebar ke 200px dalam 1.5s tanpa delay"],
+      ans:1,
+      hint:"delay = tunggu, duration = lama animasi.",
+      exp:"Delay 0.5s berarti animasi baru mulai 0.5s setelah hover, lalu berlangsung 1s (duration) hingga mencapai width 200px."
+    },
+    {
+      type:"mc",
+      q:"Ada berapa properti dasar CSS Transition?",
+      code:null,
+      opts:["2 properti","3 properti","4 properti","5 properti"],
+      ans:2,
+      hint:"property, duration, timing-function, delay = berapa?",
+      exp:"Ada 4 properti dasar: transition-property, transition-duration, transition-timing-function, dan transition-delay."
+    },
+    {
+      type:"fill",
+      q:"Properti CSS untuk menunda animasi selama 1 detik adalah:",
+      code:`.card {\n  _____: 1s;\n}`,
+      ans:"transition-delay",
+      hint:"Delay = tunda. Nama propertinya diawali 'transition-'.",
+      exp:"transition-delay adalah properti yang digunakan untuk mengatur waktu tunda sebelum animasi transisi dimulai."
+    },
+    {
+      type:"mc",
+      q:"Satuan waktu mana yang TIDAK valid untuk transition-duration?",
+      code:null,
+      opts:["0.5s","500ms","2s","200px"],
+      ans:3,
+      hint:"transition-duration adalah waktu, bukan ukuran panjang.",
+      exp:"transition-duration menggunakan satuan waktu: s (detik) atau ms (milidetik). 'px' adalah satuan panjang dan tidak valid."
+    },
+    {
+      type:"mc",
+      q:"Kode shorthand manakah yang menggabungkan transition-property, duration, timing-function, dan delay sekaligus?",
+      code:null,
+      opts:["transition: all 1s ease 0.5s;","transition-all: 1s 0.5s;","animate: all 1s ease 0.5s;","transition: 1s ease;"],
+      ans:0,
+      hint:"Shorthand 'transition' bisa memuat 4 nilai sekaligus.",
+      exp:"'transition: all 1s ease 0.5s;' adalah shorthand yang menggabungkan property (all), duration (1s), timing-function (ease), dan delay (0.5s)."
+    },
+    {
+      type:"mc",
+      q:"Jika transition-duration tidak dituliskan, nilai defaultnya adalah:",
+      code:null,
+      opts:["1s","0.5s","0s","auto"],
+      ans:2,
+      hint:"Tanpa duration, animasi terjadi tanpa waktu = ...?",
+      exp:"Nilai default transition-duration adalah 0s, artinya perubahan terjadi seketika (tidak ada animasi)."
+    }
+  ],
+
+  bs: [
+    {
+      type:"mc",
+      q:"Apa fungsi Bootstrap .container?",
+      code:null,
+      opts:["Membuat tampilan full-width 100%","Wadah responsif yang menyesuaikan lebar layar","Mengatur warna background halaman","Membuat grid otomatis"],
+      ans:1,
+      hint:"Container = wadah utama untuk konten website.",
+      exp:".container adalah elemen fundamental Bootstrap yang menyesuaikan lebarnya dengan layar secara responsif, memastikan tampilan konsisten."
+    },
+    {
+      type:"mc",
+      q:"Class Bootstrap mana yang membuat container dengan lebar PENUH (100% viewport)?",
+      code:null,
+      opts:[".container",".container-full",".container-fluid",".container-xl"],
+      ans:2,
+      hint:"'fluid' = cair = mengisi seluruh ruang.",
+      exp:".container-fluid membuat container dengan lebar 100% dari viewport, tanpa batasan lebar maksimum."
+    },
+    {
+      type:"mc",
+      q:"Sistem grid Bootstrap membagi setiap baris (.row) menjadi berapa kolom?",
+      code:null,
+      opts:["6 kolom","10 kolom","12 kolom","16 kolom"],
+      ans:2,
+      hint:"Jumlah kolom standar yang terkenal di Bootstrap adalah...",
+      exp:"Bootstrap Grid System membagi setiap .row menjadi 12 kolom virtual yang bisa digabung-gabungkan."
+    },
+    {
+      type:"fill",
+      q:"Untuk membuat 2 kolom sama lebar dalam Bootstrap, masing-masing menggunakan class:",
+      code:`<div class="row">\n  <div class="_____">Kiri</div>\n  <div class="_____">Kanan</div>\n</div>`,
+      ans:"col-6",
+      hint:"2 kolom sama rata: 12 dibagi 2 = ?",
+      exp:"col-6 berarti kolom mengambil 6 dari 12 bagian. Dua col-6 = 12, satu baris penuh."
+    },
+    {
+      type:"mc",
+      q:"Urutan struktur dasar Bootstrap Grid yang benar adalah:",
+      code:null,
+      opts:["row → container → col","col → row → container","container → row → col","container → col → row"],
+      ans:2,
+      hint:"Dari luar ke dalam: wadah besar, baris, kolom.",
+      exp:"Struktur yang benar: .container (terluar) → .row (baris) → .col (kolom, berisi konten)."
+    },
+    {
+      type:"mc",
+      q:"Breakpoint .col-md- pada Bootstrap aktif pada lebar layar:",
+      code:null,
+      opts:["≥ 576px","≥ 768px","≥ 992px","≥ 1200px"],
+      ans:1,
+      hint:"md = medium. Angkanya ada di antara 576 dan 992.",
+      exp:".col-md- aktif untuk medium devices dengan screen width ≥ 768px."
+    },
+    {
+      type:"mc",
+      q:"Apa itu Button Group dalam Bootstrap?",
+      code:null,
+      opts:["Satu tombol besar","Kumpulan beberapa tombol yang disatukan dalam satu komponen","Tombol dengan dropdown otomatis","Style tombol warna warni"],
+      ans:1,
+      hint:"'Group' = kelompok. Tombol-tombol dikumpulkan jadi satu.",
+      exp:"Button Group mengumpulkan beberapa tombol individual ke dalam satu komponen kohesif, ideal untuk menu pilihan atau navigasi sekunder."
+    },
+    {
+      type:"mc",
+      q:"Class Bootstrap untuk Button Group vertikal adalah:",
+      code:null,
+      opts:[".btn-group",".btn-group-vertical",".btn-col",".btn-stack"],
+      ans:1,
+      hint:"Nama class-nya eksplisit menyebut 'vertical'.",
+      exp:".btn-group-vertical mengatur tombol-tombol secara vertikal, cocok untuk sidebar atau sub-menu."
+    },
+    {
+      type:"fill",
+      q:"Untuk membuat layout 3 kolom sama rata di Bootstrap, masing-masing kolom menggunakan class:",
+      code:`<div class="row">\n  <div class="_____">A</div>\n  <div class="_____">B</div>\n  <div class="_____">C</div>\n</div>`,
+      ans:"col-4",
+      hint:"12 kolom dibagi 3 bagian = ?",
+      exp:"col-4 mengambil 4 dari 12 bagian. Tiga col-4 = 12, mengisi satu baris penuh dengan 3 kolom sama lebar."
+    },
+    {
+      type:"mc",
+      q:"Container Bootstrap mana yang tetap 100% di semua ukuran layar kecuali XX-Large?",
+      code:null,
+      opts:[".container",".container-xl",".container-xxl",".container-fluid"],
+      ans:2,
+      hint:".container-xxl mulai memiliki batas lebar hanya pada breakpoint terbesar.",
+      exp:".container-xxl tetap 100% lebar hingga breakpoint XX-Large (≥1400px), di mana lebarnya dibatasi 1320px."
+    }
+  ],
+
+  dom: [
+    {
+      type:"mc",
+      q:"DOM singkatan dari apa?",
+      code:null,
+      opts:["Document Object Model","Data Object Management","Design Output Module","Dynamic Object Manipulation"],
+      ans:0,
+      hint:"D = Document, O = Object, M = Model.",
+      exp:"DOM adalah Document Object Model, representasi terstruktur dari halaman HTML sebagai pohon objek yang bisa dimanipulasi JavaScript."
+    },
+    {
+      type:"mc",
+      q:"Method JavaScript mana yang digunakan untuk memilih elemen berdasarkan ID?",
+      code:null,
+      opts:["document.querySelector('#id')","document.getElementByClass('id')","document.getElementById('id')","document.selectById('id')"],
+      ans:2,
+      hint:"'ById' = 'by Id' = berdasarkan ID.",
+      exp:"document.getElementById('id') memilih elemen berdasarkan atribut id-nya. Ini salah satu method paling dasar DOM."
+    },
+    {
+      type:"fill",
+      q:"Lengkapi kode untuk mengubah teks dalam elemen dengan id='judul':",
+      code:`const el = document.getElementById('judul');\nel._____ = 'Halo Dunia';`,
+      ans:"textContent",
+      hint:"Property untuk mengubah isi teks (bukan HTML) sebuah elemen.",
+      exp:"textContent digunakan untuk membaca atau mengubah konten teks dari sebuah elemen DOM."
+    },
+    {
+      type:"mc",
+      q:"Method manakah yang memilih SEMUA elemen dengan class tertentu?",
+      code:null,
+      opts:["document.getElementById('.kelas')","document.getElementsByClassName('kelas')","document.getClass('kelas')","document.selectAll('.kelas')"],
+      ans:1,
+      hint:"Perhatikan kata 'Elements' (jamak) dan 'ClassName'.",
+      exp:"getElementsByClassName('kelas') mengembalikan HTMLCollection berisi semua elemen yang memiliki class tersebut."
+    },
+    {
+      type:"mc",
+      q:"Bagaimana cara menambahkan event listener 'click' pada sebuah tombol?",
+      code:`const btn = document.getElementById('tombol');`,
+      opts:["btn.onClick = function(){}","btn.addEventListener('click', function(){})","btn.addEvent('click', function(){})","btn.on('click', function(){})"],
+      ans:1,
+      hint:"Method-nya adalah 'addEventListener', bukan 'onClick'.",
+      exp:"addEventListener('click', callback) adalah cara standar untuk menambahkan event listener. Lebih fleksibel dari onclick karena bisa menambahkan banyak listener."
+    },
+    {
+      type:"fill",
+      q:"Lengkapi kode untuk mengubah warna teks menjadi merah:",
+      code:`const el = document.querySelector('p');\nel.style._____ = 'red';`,
+      ans:"color",
+      hint:"Property CSS 'color' diakses sama namanya di JavaScript.",
+      exp:"el.style.color mengakses properti CSS color dari elemen. Penulisan camelCase untuk CSS multi-kata, misal backgroundColor."
+    },
+    {
+      type:"mc",
+      q:"Apa perbedaan querySelector dan querySelectorAll?",
+      code:null,
+      opts:["Tidak ada perbedaan","querySelector mengembalikan 1 elemen, querySelectorAll mengembalikan semua elemen yang cocok","querySelector lebih cepat dari querySelectorAll","querySelectorAll hanya untuk class, querySelector untuk id"],
+      ans:1,
+      hint:"'All' = semua. Tanpa 'All' = hanya yang pertama.",
+      exp:"querySelector mengembalikan elemen pertama yang cocok. querySelectorAll mengembalikan NodeList berisi semua elemen yang cocok dengan selector."
+    },
+    {
+      type:"mc",
+      q:"Cara yang benar untuk menambahkan class CSS ke sebuah elemen adalah:",
+      code:`const box = document.getElementById('box');`,
+      opts:["box.class += 'aktif'","box.classList.add('aktif')","box.addClassName('aktif')","box.style.class = 'aktif'"],
+      ans:1,
+      hint:"classList adalah property khusus untuk mengelola class.",
+      exp:"classList.add('aktif') menambahkan class tanpa menghapus class yang sudah ada. classList juga memiliki remove(), toggle(), contains()."
+    },
+    {
+      type:"fill",
+      q:"Lengkapi kode untuk membuat elemen baru <p> dan menambahkannya ke dalam #container:",
+      code:`const p = document._____('p');\np.textContent = 'Teks baru';\ndocument.getElementById('container').appendChild(p);`,
+      ans:"createElement",
+      hint:"'create' + 'Element' = buat elemen baru.",
+      exp:"createElement('p') membuat elemen HTML baru. Lalu appendChild() menyisipkannya sebagai anak terakhir dari elemen target."
+    },
+    {
+      type:"mc",
+      q:"Event apa yang dipicu saat halaman HTML selesai dimuat sepenuhnya?",
+      code:null,
+      opts:["window.onload / DOMContentLoaded","document.ready","page.loaded","html.complete"],
+      ans:0,
+      hint:"'onload' atau 'DOMContentLoaded' adalah event saat halaman siap.",
+      exp:"window.onload atau event 'DOMContentLoaded' digunakan untuk memastikan semua elemen HTML sudah tersedia sebelum JavaScript dieksekusi."
+    }
+  ]
+};
+
+/* mixed = gabungan semua */
+QB.mixed = [
+  ...QB.css.slice(0,5),
+  ...QB.bs.slice(0,5),
+  ...QB.dom.slice(0,5),
+  QB.css[5], QB.bs[5], QB.dom[5], QB.css[6], QB.dom[7]
+];
+
+/* ════ GAME STATE ════ */
+let state = {
+  module: 'mixed',
+  questions: [],
+  current: 0,
+  score: 0,
+  hp: 3,
+  streak: 0,
+  bestStreak: 0,
+  correct: 0,
+  wrong: 0,
+  answered: false,
+  history: [],
+  hintUsed: false
+};
+
+const MODULE_LABELS = {
+  css: '🎨 CSS Transition',
+  bs: '⚡ Bootstrap',
+  dom: '🌐 JavaScript DOM',
+  mixed: '🏆 Mix All'
+};
+
+/* ════ PARTICLES ════ */
+(function(){
+  const cvs = document.getElementById('particles');
+  const ctx = cvs.getContext('2d');
+  let W, H, pts = [];
+  function resize(){ W = cvs.width = window.innerWidth; H = cvs.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+  for(let i=0;i<60;i++) pts.push({
+    x: Math.random()*2000, y: Math.random()*1000,
+    vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.3,
+    r: Math.random()*1.5+.5,
+    c: ['#7c3aed','#06b6d4','#f59e0b','#10b981'][Math.floor(Math.random()*4)]
+  });
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    pts.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0||p.x>W) p.vx*=-1;
+      if(p.y<0||p.y>H) p.vy*=-1;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=p.c+'88';
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ════ SCREEN HELPERS ════ */
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ════ START GAME ════ */
+function startGame(module){
+  state.module = module;
+  let qs = [...QB[module]];
+  // shuffle
+  for(let i=qs.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [qs[i],qs[j]]=[qs[j],qs[i]];
+  }
+  state.questions = qs;
+  state.current = 0;
+  state.score = 0;
+  state.hp = 3;
+  state.streak = 0;
+  state.bestStreak = 0;
+  state.correct = 0;
+  state.wrong = 0;
+  state.history = [];
+  document.getElementById('qModuleBadge').textContent = MODULE_LABELS[module];
+  showScreen('screenQuiz');
+  renderQuestion();
+}
+
+/* ════ RENDER QUESTION ════ */
+function renderQuestion(){
+  const q = state.questions[state.current];
+  const total = state.questions.length;
+  state.answered = false;
+  state.hintUsed = false;
+
+  // header
+  document.getElementById('qCounter').textContent = `${state.current+1} / ${total}`;
+  document.getElementById('liveSc').textContent = state.score;
+  document.getElementById('progressFill').style.width = `${(state.current/total)*100}%`;
+  document.getElementById('hpNum').textContent = state.hp;
+  document.getElementById('hpFill').style.width = `${(state.hp/3)*100}%`;
+
+  // question
+  document.getElementById('qType').textContent = q.type==='mc' ? '● PILIHAN GANDA' : '✏ ISIAN SINGKAT';
+  document.getElementById('qText').textContent = q.q;
+
+  // code
+  const codeEl = document.getElementById('qCode');
+  if(q.code){
+    codeEl.classList.remove('hidden');
+    codeEl.innerHTML = q.code
+      .replace(/(<kw>)(.*?)(<\/kw>)/g,'<span class="kw">$2</span>')
+      .replace(/(<val>)(.*?)(<\/val>)/g,'<span class="val">$2</span>');
+  } else {
+    codeEl.classList.add('hidden');
+    codeEl.innerHTML='';
+  }
+
+  // feedback
+  const fb = document.getElementById('feedbackBar');
+  fb.className = 'feedback-bar';
+  fb.innerHTML = '';
+
+  // options
+  const area = document.getElementById('optionsArea');
+  area.innerHTML='';
+
+  if(q.type === 'mc'){
+    document.getElementById('btnSubmit').classList.add('hidden');
+    const grid = document.createElement('div');
+    grid.className='options-grid';
+    const letters=['A','B','C','D'];
+    q.opts.forEach((opt,i)=>{
+      const btn = document.createElement('button');
+      btn.className='option-btn';
+      btn.innerHTML=`<span class="opt-letter">${letters[i]}</span>${opt}`;
+      btn.onclick=()=>selectMC(i, btn, q);
+      grid.appendChild(btn);
+    });
+    area.appendChild(grid);
+    document.getElementById('btnNext').classList.add('hidden');
+  } else {
+    // fill
+    const inp = document.createElement('input');
+    inp.type='text';
+    inp.className='fill-input';
+    inp.placeholder='Ketik jawaban kamu...';
+    inp.id='fillInput';
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter') submitFill(); });
+    area.appendChild(inp);
+    document.getElementById('btnSubmit').classList.remove('hidden');
+    document.getElementById('btnNext').classList.add('hidden');
+    setTimeout(()=>inp.focus(),100);
+  }
+}
+
+/* ════ MC SELECT ════ */
+function selectMC(idx, clickedBtn, q){
+  if(state.answered) return;
+  state.answered = true;
+
+  const btns = document.querySelectorAll('.option-btn');
+  btns.forEach(b=>b.disabled=true);
+
+  const isCorrect = idx === q.ans;
+  clickedBtn.classList.add(isCorrect ? 'correct' : 'wrong');
+  if(!isCorrect) btns[q.ans].classList.add('correct');
+
+  handleResult(isCorrect, q);
+}
+
+/* ════ FILL SUBMIT ════ */
+function submitFill(){
+  if(state.answered) return;
+  const inp = document.getElementById('fillInput');
+  const userAns = inp.value.trim().toLowerCase();
+  const q = state.questions[state.current];
+  const correctAns = q.ans.toString().toLowerCase();
+  const isCorrect = userAns === correctAns;
+
+  state.answered = true;
+  inp.disabled = true;
+  inp.classList.add(isCorrect ? 'correct' : 'wrong');
+  document.getElementById('btnSubmit').classList.add('hidden');
+
+  if(!isCorrect){
+    // show correct answer
+    const hint = document.createElement('div');
+    hint.style.cssText='font-family:Space Mono;font-size:.8rem;color:#86efac;margin-top:.4rem;';
+    hint.textContent = `✓ Jawaban benar: ${q.ans}`;
+    inp.after(hint);
+  }
+
+  handleResult(isCorrect, q);
+}
+
+/* ════ HANDLE RESULT ════ */
+function handleResult(isCorrect, q){
+  const fb = document.getElementById('feedbackBar');
+
+  if(isCorrect){
+    state.streak++;
+    if(state.streak > state.bestStreak) state.bestStreak = state.streak;
+    const pts = state.hintUsed ? 5 : 10;
+    state.score += pts;
+    state.correct++;
+
+    fb.className='feedback-bar correct-fb show';
+    fb.innerHTML=`✅ <div><strong>Benar! +${pts} poin</strong><br><span style="font-size:.82rem;opacity:.85">${q.exp}</span></div>`;
+
+    if(state.streak >= 3){
+      const sb = document.getElementById('streakBadge');
+      document.getElementById('streakNum').textContent = state.streak;
+      sb.style.display='block';
+      setTimeout(()=>{ sb.style.display='none'; },2000);
+    }
+  } else {
+    state.streak = 0;
+    state.hp--;
+    state.wrong++;
+    document.getElementById('hpNum').textContent = state.hp;
+    document.getElementById('hpFill').style.width = `${Math.max(0,(state.hp/3)*100)}%`;
+
+    fb.className='feedback-bar wrong-fb show';
+    fb.innerHTML=`❌ <div><strong>Salah!</strong><br><span style="font-size:.82rem;opacity:.85">${q.exp}</span></div>`;
+  }
+
+  document.getElementById('liveSc').textContent = state.score;
+  state.history.push({ q: q.q, correct: isCorrect, ans: q.ans, userAns: state.answered });
+  document.getElementById('btnNext').classList.remove('hidden');
+  document.getElementById('btnHint').disabled = true;
+
+  if(state.hp <= 0){
+    document.getElementById('btnNext').textContent = 'Lihat Hasil →';
+  }
+}
+
+/* ════ HINT ════ */
+function showHint(){
+  if(state.answered || state.hintUsed) return;
+  state.hintUsed = true;
+  const q = state.questions[state.current];
+  const fb = document.getElementById('feedbackBar');
+  fb.className='feedback-bar hint-fb show';
+  fb.innerHTML=`💡 <div><strong>Hint:</strong> ${q.hint}</div>`;
+  document.getElementById('btnHint').disabled = true;
+}
+
+/* ════ NEXT QUESTION ════ */
+function nextQuestion(){
+  if(state.hp <= 0){
+    showResult();
+    return;
+  }
+  state.current++;
+  if(state.current >= state.questions.length){
+    showResult();
+  } else {
+    document.getElementById('btnNext').textContent = 'Lanjut →';
+    renderQuestion();
+  }
+}
+
+/* ════ SHOW RESULT ════ */
+function showResult(){
+  const total = state.questions.length;
+  const pct = Math.round((state.correct / total)*100);
+
+  let emoji, title;
+  if(pct>=90){ emoji='🏆'; title='Luar Biasa!'; }
+  else if(pct>=70){ emoji='🎉'; title='Bagus Sekali!'; }
+  else if(pct>=50){ emoji='💪'; title='Lumayan!'; }
+  else { emoji='📚'; title='Perlu Belajar Lagi!'; }
+
+  document.getElementById('resultEmoji').textContent = emoji;
+  document.getElementById('resultTitle').textContent = title;
+  document.getElementById('resultScBig').textContent = state.score;
+  document.getElementById('resultSub').textContent = `dari ${total*10} poin maksimal`;
+  document.getElementById('statCorrect').textContent = state.correct;
+  document.getElementById('statWrong').textContent = state.wrong;
+  document.getElementById('statStreak').textContent = state.bestStreak;
+  document.getElementById('statAcc').textContent = pct+'%';
+
+  // review
+  const rev = document.getElementById('reviewArea');
+  rev.innerHTML = `<div class="review-title">📋 Review Jawaban</div>`;
+  state.history.forEach((h,i)=>{
+    const div = document.createElement('div');
+    div.className = `review-item ${h.correct?'r-correct':'r-wrong'}`;
+    div.innerHTML = `<div class="review-q">${i+1}. ${h.q}</div>
+      <div class="review-ans">${h.correct
+        ? `<span class="r-c">✓ Benar</span>`
+        : `<span class="r-w">✗ Salah</span> — Jawaban benar: <span class="r-c">${Array.isArray(h.ans)?h.ans:h.ans}</span>`
+      }</div>`;
+    rev.appendChild(div);
+  });
+
+  showScreen('screenResult');
+}
+
+/* ════ REPLAY / MENU ════ */
+function replayGame(){ startGame(state.module); }
+function goMenu(){
+  document.getElementById('streakBadge').style.display='none';
+  showScreen('screenIntro');
+}
+</script>
+</body>
+</html>
